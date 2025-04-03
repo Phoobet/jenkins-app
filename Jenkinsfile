@@ -8,65 +8,67 @@ pipeline {
 
     stages {
         stage('Build') {
-            agent{
-                docker{
+            agent {
+                docker {
                     image 'node:18-alpine'
                     reuseNode true
                 }
             }
             steps {
-                sh '''
+                script {
                     echo "================Building the project================"
-                    ls -la
-                    node --version
-                    npm --version
-                    npm ci
-                    npm run build
-                    ls -la
-                '''
+                    sh 'ls -la'
+                    sh 'node --version'
+                    sh 'npm --version'
+                    sh 'npm ci'
+                    sh 'npm run build'
+                    sh 'ls -la'
+                }
             }
         }
 
-
-        stage('Test')   {
-            agent{
-                docker{
+        stage('Test') {
+            agent {
+                docker {
                     image 'node:18-alpine'
                     reuseNode true
                 }
             }
-            steps{
-                sh '''
+            steps {
+                script {
                     echo "================Testing the project================"
-                    test -f build/index.html
-                    npm test
-                '''
+                    // ตรวจสอบว่า build/index.html มีจริงหรือไม่
+                    sh 'test -f build/index.html || exit 1'
+                    sh 'npm test'
+                }
             }
         }
 
         stage('Deploy') {
-            agent{
-                docker{
+            agent {
+                docker {
                     image 'node:18-alpine'
                     reuseNode true
                 }
             }
             steps {
-                sh '''
-                    npm install netlify-cli --save-dev
-                    node_modules/.bin/netlify --version
+                script {
                     echo "================Deploying the project================"
-                    echo "Deploying to Netlify Site ID: $NETLIFY_SITE_ID"
-                    node_modules/.bin/netlify deploy --dir=build --prod --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH
-                '''
+                    // ติดตั้ง netlify-cli แบบ global
+                    sh 'npm install -g netlify-cli'
+                    sh 'netlify --version'
+                    sh '''
+                        echo "Deploying to Netlify Site ID: $NETLIFY_SITE_ID"
+                        netlify deploy --dir=build --prod --site=$NETLIFY_SITE_ID --auth=$NETLIFY_AUTH
+                    '''
+                }
             }
         }
-
-
     }
+
     post {
-        always{
-            junit 'test-results/junit.xml'
+        always {
+            junit '**/test-results/*.xml' // ตรวจสอบว่าไฟล์ผลทดสอบอยู่ในตำแหน่งที่ถูกต้อง
         }
     }
 }
